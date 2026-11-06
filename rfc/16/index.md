@@ -1,57 +1,59 @@
 ---
 authors:
-  - name: Author 1
-    github: author1
-    orcid: 0000-0000-0000-0000
-    affiliation: Affiliation X
-    affiliation_url: https://ror.org/XXXXXXXXX
+  - name: Aafke Gros
+    github: aafkegros
+    orcid: 0000-0003-2459-9858
+    affiliation: EMBL Heidelberg
     role: Corresponding Author
-    date: "YYYY-MM-DD"
-  - name: Author 2
-    github: author2
-    orcid: 0000-0000-0000-0000
-    affiliation: Affiliation Y
+    date: "2026-11-05"
+  - name: Jonas Windhager
+    github: jwindhager
+    orcid: 0000-0002-2111-5291
+    affiliation: SciLifeLab / Uppsala University, Sweden
     role: Co-author
-    date: "YYYY-MM-DD"
-  - name: Author 3
-    orcid: 0000-0000-0000-0000
-    github: author3
-    affiliation: Affiliation Z
+    date: "2026-11-05"
+  - name: Suraj Pathak
+    orcid: 0009-0002-1905-1943
+    github: sspathak
+    affiliation: University College London
     role: Co-author
-    date: "YYYY-MM-DD"
-endorsers:
-  - name: Endorser 1
-    github: endorser1
-    orcid: 0000-0000-0000-0000
-    affiliation: Affiliation A
-    role: Endorser
-    date: "YYYY-MM-DD"
-    reference: https://example.com
-editors:
-  - name: Josh Moore
-    github: joshmoore
-    orcid: 0000-0000-0000-0000
-    affiliation: German BioImaging e.V.
-    role: Editor
-    date: "YYYY-MM-DD"
+    date: "2026-11-05"
+# endorsers:
+#   - name: Endorser 1
+#     github: endorser1
+#     orcid: 0000-0000-0000-0000
+#     affiliation: Affiliation A
+#     role: Endorser
+#     date: "YYYY-MM-DD"
+#     reference: https://example.com
+# editors:
+#   - name: Josh Moore
+#     github: joshmoore
+#     orcid: 0000-0000-0000-0000
+#     affiliation: German BioImaging e.V.
+#     role: Editor
+#     date: "YYYY-MM-DD"
 reference_pr: https://github.com/ome/ngff/pull/XXX
 manual_status: D3
 status_note: authors open PR
 description: View settings
 date: "2026-11-05"
 ---
+
 # RFC-16: View settings
 
 (rfcs:rfc16)=
 
-Summary: View settings
+Summary: Embedded, interoperable view settings for OME-Zarr.
 
 ## Status
 
-Draft (D3). Author, editor, and reference PR details are placeholders to be completed.
+Draft (D3). This document captures the working group's proposed direction.
+The metadata structure and rendering semantics remain under discussion;
+examples are illustrative, not a finalized schema. An editor and reference PR
+still need to be recorded.
 
 ```{rfc-status}
-
 ```
 
 ```{toctree}
@@ -62,283 +64,207 @@ templates/index
 
 ## Overview
 
-The RFC begins with a brief overview. This section should be one or two
-paragraphs that just explains what the goal of this RFC is going to be, but
-without diving too deeply into the "why", "why now", "how", etc. Ensure anyone
-opening the document will form a clear understanding of the RFCs intent from
-reading this paragraph(s).
+This RFC proposes embedding view settings in OME-Zarr so that viewers can share
+how a dataset is presented. A view describes how dataset dimensions are used
+for visualization, which non-spatial indices are selected, and how values are
+mapped to colors. Camera settings are also being considered.
+
+The goal is the largest useful set of settings for which participating viewers
+can agree on behavior. 
 
 ## Background
 
-The next section is the "Background" section. This section should be at least
-two paragraphs and can take up to a whole page in some cases. The \*\*guiding goal
-of the background section\*\* is: as a newcomer to this project (new employee, team
-transfer), can I read the background section and follow any links to get the
-full context of why this change is necessary? 
+An image's stored values and coordinate system do not fully describe how to
+present it. Users also choose contrast limits, colors, visible layers, and a
+field of view. Recording these choices alongside the data would help users
+reopen a useful presentation and share it across applications.
 
-If you can't show a random engineer the background section and have them
-acquire nearly full context on the necessity for the RFC, then the background
-section is not full enough. To help achieve this, link to prior RFCs,
-discussions, and more here as necessary to provide context so you don't have to
-simply repeat yourself.
+The 2026 OME-Zarr Hackathon Zurich working group identified use cases including
+field-of-view-specific contrast, archive thumbnails, figure panels, multilayer
+images, time series, and RGB images. These uses motivate a common description,
+while the variety of viewer capabilities makes it necessary to distinguish
+shared behavior from application-specific rendering choices.
+
+This proposal relates to coordinate transformations in [RFC-3](../3/index.md),
+coordinate spaces in [RFC-5](../5/index.md), and collections and extensions in
+[RFC-8](../8/index.md). 
 
 ## Proposal
 
-The next required section is "Proposal". Given the background above, this
-section proposes a solution. This should be an overview of the "how" for the
-solution, but for details further sections will be used.
+Define an embedded view description with the following components:
 
-## Sections (at heading 2)
+- A reference to a scene coordinate space.
+- A mapping from scene dimensions to visualization roles.
+- Current indices for animation and other indexable dimensions.
+- Explicit value-to-color mappings and a background color.
+- One or more cameras describing the spatial presentation.
 
-From this point onwards, the sections and headers are generally freeform
-depending on the RFC, though it is typically preferable to make use of the
-sections listed below changing the order as necessary. Sections are styled as
-"Heading 2". Try to organize your information into self-contained sections that
-answer some critical question, and organize your sections into an order that
-builds up knowledge necessary (rather than forcing a reader to jump around to
-gain context).
+The location of this metadata in OME-Zarr, its versioning, and the ability to
+store multiple view configurations remain open. The sketches below illustrate
+possible contents without selecting a storage location or final field names.
 
-Sections often are split further into sub-sections styled "Heading 3" and beyond. These sub-sections just further help to organize data to ease reading and discussion.
+### Scope
 
-## Requirements (Recommended Header)
+The proposal covers shared view settings with defined behavior. It should leave
+room for future viewer-specific extensions without defining an extension system
+in this RFC. A viewer-specific setting could eventually refine a shared setting,
+with the application maintaining the shared fallback.
 
-For the problem(s) solved by this RFC, what constrains the possible solutions?
-List other RFCs, or standards (ISO, etc.) which are applicable. It is suggested
-that the following text SHOULD be used in all RFCs:
+Canvas layouts, keyframes, parametric colormaps, and Zarr-vectors are out of
+scope. Current indices for non-spatial dimensions belong to the view rather
+than to its camera. Cameras describe presentation and are not intended to define
+regions of interest.
+
+## Requirements
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
 "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be
-interpreted as described in [IETF RFC 2119](https://tools.ietf.org/html/rfc2119)
-
-## Stakeholders (Recommended Header)
-
-Who has a stake in whether this RFC is accepted?
-
-* Facilitator: The person appointed to shepherd this RFC through the RFC
-  process.
-* Reviewers: List people whose vote (+1 or -1) will be taken into consideration
-  by the editor when deciding whether this RFC is accepted or rejected. Where
-  applicable, also list the area they are expected to focus on. In some cases
-  this section may be initially left blank and stakeholder discovery completed
-  after an initial round of socialization. Care should be taken to keep the
-  number of reviewers manageable, although the exact number will depend on the
-  scope of the RFC in question.
-* Consulted: List people who should review the RFC, but whose approval is not
-  required.
-* Socialization: This section may be used to describe how the design was
-  socialized before advancing to the "Iterate" stage of the RFC process. For
-  example: "This RFC was discussed at a working group meetings from 20xx-20yy"
-
-## Implementation (Recommended Header)
-
-Many RFCs have an "implementation" section which details how the implementation
-will work. This section should explain the rough specification changes. The
-goal is to give an idea to reviewers about the subsystems that require change
-and the surface area of those changes. 
-
-This knowledge can result in recommendations for alternate approaches that
-perhaps are idiomatic to the project or result in less packages touched. Or, it
-may result in the realization that the proposed solution in this RFC is too
-complex given the problem.
+interpreted as described in IETF RFC 2119.
 
-For the RFC author, typing out the implementation in a high-level often serves
-as "[rubber duck debugging](https://en.wikipedia.org/wiki/Rubber_duck_debugging)" and you can catch a lot of
-issues or unknown unknowns prior to writing any real code.
+The proposed design requirements are:
 
-## Drawbacks, risks, alternatives, and unknowns (Recommended Header)
+- Shared settings have defined rendering semantics; unrestricted strings with
+  merely suggested meanings are insufficient.
+- Color mappings include their values. A human-readable name does not replace
+  the mapping with a lookup in an application-specific colormap registry.
+- Visualization dimensions inherit units from the referenced scene dimensions.
+- Scene dimension types do not restrict their visualization roles.
 
-* What are the costs of implementing this proposal?
-* What known risks exist? What factors may complicate your project? Include:
-  security, complexity, compatibility, latency, service immaturity, lack of
-  team expertise, etc.
-* What other strategies might solve the same problem?
-* What questions still need to be resolved, or details iterated upon, to accept
-  this proposal? Your answer to this is likely to evolve as the proposal
-  evolves.
-* What parts of the design do you expect to resolve through the RFC process
-  before this gets merged?
-* What parts of the design do you expect to resolve through the implementation
-  of this feature before stabilization?
-* What related issues do you consider out of scope for this RFC that could be
-  addressed in the future independently of the solution that comes out of this
-  RFC?
+### Dimension mapping
 
-## Abandoned Ideas (Optional Header)
+Scene dimensions can be mapped to spatial display axes (`x`, `y`, `z`), an
+overlapping role such as channels, an animation dimension, or other indexable
+dimensions. Animation and indexable dimensions carry current selections.
 
-As RFCs evolve, it is common that there are ideas that are abandoned. Rather
-than simply deleting them from the document, you should try to organize them
-into sections that make it clear they're abandoned while explaining why they
-were abandoned.
+For example, a scene sampled over time and three spatial dimensions could be
+shown as a kymograph: map scene `x` and time to display `x` and `y`, and make
+scene `y` and `z` indexable. The mapping does not alter the scene's coordinate
+space or units.
 
-When sharing your RFC with others or having someone look back on your RFC in
-the future, it is common to walk the same path and fall into the same pitfalls
-that we've since matured from. Abandoned ideas are a way to recognize that path
-and explain the pitfalls and why they were abandoned.
+The representation of omitted dimensions, axis direction, origin, handedness,
+and channel or layer order remains to be specified.
 
-## Prior art and references (Optional Header)
+### Cameras
 
-Is there any background material that might be helpful when reading this
-proposal? For instance, do other operating systems address the same problem
-this proposal addresses?
+The working group is considering a rectangle for a 2D camera and a frustum for
+a 3D camera, expressed in the units inherited from scene dimensions. Whether
+camera settings belong in the initial shared set remains open.
 
-Discuss prior art, both the good and the bad, in relation to this proposal. A
-few examples of what this can include are:
+The notes explore front and back planes, but also identify difficulties with
+back-plane construction and infinite depth. Alternatives involving focal length
+need evaluation. No camera geometry is selected by this draft.
 
-Does this feature exist in other formats and what experiences has their
-community had?
+Other open questions include view direction, orthographic versus perspective
+projection, screen pixel dimensions, multiple cameras, and the distinction
+between a camera and a viewport.
 
-Are there any published papers or great posts that discuss this? If you have
-some relevant papers to refer to, this can serve as a more detailed theoretical
-background.
+### Colors and contrast
 
-This section is intended to encourage you as an author to think about the
-lessons from other domains, and provide readers of your RFC with a fuller
-picture. If there is no prior art, that is fine - your ideas are interesting to
-us whether they are brand new or if it is an adaptation from other languages.
+The proposed color description separates the mapping of data values to a color
+coordinate from the mapping of that coordinate to explicit colors. The first
+mapping may be an identity mapping, which is useful for discrete label values.
+Colors are proposed as hexadecimal RGBA values in sRGB.
 
-Note that while precedent set by other languages is some motivation, it does
-not on its own motivate an RFC.
+The design needs to cover:
 
-## Future possibilities (Optional Header)
+- Continuous mappings with potentially unevenly spaced stops.
+- Discrete mappings for label values.
+- Interpolation, including nearest-neighbor and linear behavior.
+- Values above and below the mapping range, including explicit colors,
+  periodic behavior, or mirrored behavior.
+- Invalid values, gamma, and blending or compositing.
+- Random label colors with a seed, and RGB presentation.
 
-Think about what the natural extension and evolution of your proposal would be
-and how it would affect the specification and project as a whole in a holistic
-way. Try to use this section as a tool to more fully consider all possible
-interactions with the project in your proposal. Also consider how this all fits
-into the roadmap for the project and of the relevant sub-team.
+The ordering and exact meaning of these operations still need specification.
+In particular, gamma placement, color interpolation space, and boundary behavior
+must be agreed before a mapping is interoperable. Whether mappings attach to
+channels, layers, or another object is also unresolved, including mappings
+across channels such as time-trajectory coloring.
 
-This is also a good place to "dump ideas", if they are out of scope for the RFC
-you are writing but otherwise related. If you have tried and cannot think of
-any future possibilities, you may simply state that you cannot think of
-anything.
+## Stakeholders
 
-Note that having something written down in the future-possibilities section is
-not a reason to accept the current or a future RFC; such notes should be in the
-section on motivation or rationale in this or subsequent RFCs. The section
-merely provides additional information.
+The authors are listed above. An editor and reviewers have not yet been assigned.
+The proposal originated in the 2026 OME-Zarr Hackathon Zurich view-settings
+working group.
 
-## Performance (Recommended Header)
+Potential viewers for evaluation include AGAVE, ImageJ/Fiji, BigDataViewer,
+BigVolumeViewer/BigVolumeBrowser, Microscopy Nodes, neuroglancer, napari, QuPath,
+Webknossos, and Vizarr. This list does not imply participation or endorsement.
 
-What impact will this proposal have on performance? What benchmarks should we
-create to evaluate the proposal? To evaluate the implementation? Which of those
-benchmarks should we monitor on an ongoing basis?
+## Implementation
 
-Do you expect any (speed / memory)? How will you confirm?
+Start with an experimental convention to compare behavior across viewers and
+iterate while related RFCs develop. The notes propose an initially non-public
+prototype; a final convention, schema, and public examples remain to be prepared.
 
-There should be microbenchmarks. Are there?
+Implementers will need to resolve coordinate-space references, apply dimension
+mappings and index selections, and evaluate the agreed color operations.
+Camera support depends on the outcome of the scope discussion.
 
-There should be end-to-end tests and benchmarks. If there are not (since this
-is still a design), how will you track that these will be created?
+## Drawbacks, risks, alternatives, and unknowns
 
-## Compatibility (Recommended Header)
+Different viewers may support different rendering models. A broad shared set
+could be difficult to implement, while a narrow set could omit important uses.
+Viewer-specific refinements are a possible future direction, but their fallback
+and override semantics are not defined here.
 
-How does this proposal affect backwards and forwards compatibility?
+The main decisions still required are:
 
-Does it restrict existing assumptions or remove existing restrictions?
+- Whether to separate 2D and 3D views, and whether cameras are included initially.
+- Metadata placement, references, defaults, and multiple view configurations.
+- Blending and compositing semantics, including layer order.
+- Channel identity, RGB representation, and color-mapping attachment.
+- Axis direction, handedness, and coordinate selection semantics.
+- Required viewer participation and handling of unsupported settings.
 
-How are implementations expected to handle these changes?
+Free-text settings with only suggested values were considered and set aside
+because they would decouple stored settings from expected behavior.
 
-## Testing (Recommended Header)
+## Performance
 
-How will you test your feature? A typical testing strategy involves unit,
-integration, and end-to-end tests. Are our existing test frameworks and
-infrastructure sufficient to support these tests or does this proposal require
-additional investment in those areas?
+Time-series playback is a motivating use case. Evaluation should determine
+whether restoring a view or applying color mappings introduces significant
+loading or interaction delays. No playback speed requirement is defined yet.
 
-If your proposal defines a contract implemented by other people, how will those
-people test that they have implemented the contract correctly? Consider, for
-example, creating a conformance test suite for this purpose.
+## Compatibility
 
-## Tutorials and Examples (Recommended Header)
+The relationship to existing OMERO transitional visualization metadata remains
+to be specified. This draft does not define a migration or compatibility layer.
 
-It is strongly recommended to provide as many examples as possible of what both users and developers can expect if the RFC were to be accepted. Sample data should be shared publicly. If longer-term is not available, contact the **Editors** for assistance.
+## Testing
 
-(additional-considerations)=
-## Additional considerations (Optional Header)
+Once the shared semantics are agreed, evaluate representative views in at least
+three viewers. Compare dimension selections, contrast and color results, and,
+if included, camera presentation. Shared examples should cover continuous
+intensities, discrete labels, RGB, and a kymograph.
 
-Most RFCs will not need to consider all the following issues. They are included here as a checklist 
+## Tutorials and examples
 
-### Security
-What impact will this proposal have on security? Does the proposal require a
-security review?
+The following JSON illustrates the two-stage color mapping proposed in the
+notes. Field names and structure are provisional. The name is descriptive;
+the explicit stops carry the mapping.
 
-A good starting point is to think about how the system might encounter
-untrusted inputs and how those inputs might be used to manipulate the system.
-From there, consider how known classes of vulnerabilities might apply to the
-system and what tools and techniques can be applied to avoid those
-vulnerabilities.
+```json
+{
+  "name": "black to white",
+  "value_to_cspace": [[13, 0.0], [255, 1.0]],
+  "cspace_to_color": [[0.0, "#000000FF"], [1.0, "#FFFFFFFF"]]
+}
+```
 
-### Privacy
+For a label map, the first stage could be `"identity"`, with explicit label
+values such as `1`, `2`, and `115` mapped to colors in the second stage.
+Public example datasets remain to be selected.
 
-What impact will this proposal have on privacy? Does the proposal require a
-privacy review?
+## UI/UX
 
-A good starting point is to think about how user data might be collected,
-stored, or processed by your system. From there, consider the lifecycle of such
-data and any data protection techniques that may be employed.
+Users should be able to recover the agreed presentation in participating
+viewers. Decisions about selecting among multiple saved views and communicating
+unsupported settings remain open. Archive thumbnails and figure panels are
+motivating uses, but this RFC does not define their canvas layout.
 
-### UI/UX
+## Future possibilities
 
-If there are user- or frontend-impacting changes by this RFC, it is important
-to have a "UI/UX" section. User-impacting changes might include changes in how
-images will be rendered. Frontend-impacting changes might include the need to
-perform additional preprocessing of inputs before displaying to users.
-
-This section is effectively the "implementation" section for the user
-experience. The goal is to explain the changes necessary, any impacts to
-backwards compatibility, any impacts to normal workflow, etc.
-
-As a reviewer, this section should be checked to see if the proposed changes
-feel like the rest of the ecosystem. Further, if the breaking changes are
-intolerable or there is a way to make a change while preserving compatibility,
-that should be explored.
-
-## Style Notes (EXAMPLE)
-
-All RFCs should follow similar styling and structure to ease reading.
-
-This section will updated as more style decisions are made
-so that users of the template can simply cut-n-paste sections.
-
-### Heading Styles
-
-"Heading 2" should be used for section titles. We do not use "Heading 1"
-because aesthetically the text is too large. Google Docs will use Heading 2 as
-the outermost headers in the generated outline.
-
-"Heading 3" should be used for sub-sections.
-
-Further heading styles can be used for nested sections, however it is rare that
-a RFC goes beyond "Heading 4," and rare itself that "Heading 4" is reached.
-
-### Lists
-
-When making lists, it is common to bold the first phrase/sentence/word to bring
-some category or point to attention. For example, a list of API considerations:
-
-* *Format* should be widgets
-* *Protocol* should be widgets-rpc
-* *Backwards* compatibility should be considered.
-
-### Spelling
-
-American spelling is preferred.
-
-### Code Samples
-
-Code samples should be indented (tab or spaces are fine as long as it is
-consistent) text using the Courier New font. Syntax highlighting can be
-included if possible but isn't necessary. Please ensure the highlighted syntax
-is the proper font size and using the font Courier New so non-highlighted
-samples don't appear out of place.
-
-CLI output samples are similar to code samples but should be highlighted with
-the color they'll output if it is known so that the RFC could also cover
-formatting as part of the user experience.
-
-	    func example() {
-	      <-make(chan struct{})
-	    }
-
-
-Note: This template is based on the [RFC template from Hashicorp](https://works.hashicorp.com/articles/rfc-template) used with permission.
+A future extension mechanism could describe viewer-specific rendering controls
+alongside shared fallback settings. Thumbnail workflows may consume saved views
+once their relationship to the thumbnail proposal is established.

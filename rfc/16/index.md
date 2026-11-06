@@ -67,7 +67,7 @@ templates/index
 This RFC proposes embedding view settings in OME-Zarr so that viewers can share
 how a dataset is presented. A view describes how dataset dimensions are used
 for visualization, which non-spatial indices are selected, and how values are
-mapped to colors. Camera settings are also being considered.
+mapped to colors. Cameras describe the spatial window and viewing direction.
 
 The goal is the largest useful set of settings for which participating viewers
 can agree on behavior. 
@@ -146,17 +146,45 @@ and channel or layer order remains to be specified.
 
 ### Cameras
 
-The working group is considering a rectangle for a 2D camera and a frustum for
-a 3D camera, expressed in the units inherited from scene dimensions. Whether
-camera settings belong in the initial shared set remains open.
+A camera consists of a sensor/window box and a view vector, with a focal length
+for 3D views. The `sensor` field retains the box representation used in the
+initial sketch: each axis has a two-element interval `[min, max]`. It describes
+the spatial window to frame, in the mapped visualization coordinates, rather
+than two planes whose corners must form a valid frustum.
 
-The notes explore front and back planes, but also identify difficulties with
-back-plane construction and infinite depth. Alternatives involving focal length
-need evaluation. No camera geometry is selected by this draft.
+For a 2D view, the box contains `x` and `y`. For a 3D view, it also contains `z`.
+The box is axis-aligned in the visualization coordinate system; the view vector
+specifies the direction of viewing through that window, toward the scene.
+Its magnitude does not affect the view. Current timepoints and other index
+selections remain properties of the view, outside the camera.
 
-Other open questions include view direction, orthographic versus perspective
-projection, screen pixel dimensions, multiple cameras, and the distinction
-between a camera and a viewport.
+For a 3D perspective view, `focal_length` is a positive finite distance from the
+projection center to the sensor plane. The proposed convention is
+`focal_length: null` for orthographic projection, avoiding an infinity value in
+JSON. A 2D camera omits `focal_length`. The focal length and spatial box need
+commensurate units; conversion between mapped axis units must be resolved before
+perspective projection can be specified completely.
+
+The proposed validation constraints are:
+
+- `sensor` contains exactly the spatial axes of the view, each with two finite
+  numbers in increasing order.
+- `view_vector` contains finite `x`, `y`, and `z` components in the display frame
+  and is nonzero. For a 2D view, `z` denotes the display-plane normal rather
+  than an additional scene dimension; the proposed direction is `[0, 0, -1]`.
+- A 3D camera includes `focal_length`, either a positive finite number or `null`;
+  a 2D camera omits it.
+
+These constraints avoid validating relationships between front and back planes.
+Interval ordering and the nonzero-vector check may require semantic validation
+in addition to a JSON Schema.
+
+The box and direction do not yet fully specify an arbitrarily rotated camera.
+The convention for camera roll (or an explicit up vector), placement of the
+sensor plane relative to the box, and fitting the box to the output aspect
+ratio remain to be agreed. In particular, the box's `z` interval describes its
+spatial extent, not a clipping-plane pair. Clipping behavior and output pixel
+dimensions are also open. The first camera in the list is proposed as primary.
 
 ### Colors and contrast
 
@@ -199,7 +227,8 @@ prototype; a final convention, schema, and public examples remain to be prepared
 
 Implementers will need to resolve coordinate-space references, apply dimension
 mappings and index selections, and evaluate the agreed color operations.
-Camera support depends on the outcome of the scope discussion.
+Camera support requires agreement on the remaining orientation and window-fitting
+conventions.
 
 ## Drawbacks, risks, alternatives, and unknowns
 
@@ -210,7 +239,8 @@ and override semantics are not defined here.
 
 The main decisions still required are:
 
-- Whether to separate 2D and 3D views, and whether cameras are included initially.
+- Whether to separate 2D and 3D views, and the remaining camera orientation,
+  unit conversion, window-fitting, and clipping conventions.
 - Metadata placement, references, defaults, and multiple view configurations.
 - Blending and compositing semantics, including layer order.
 - Channel identity, RGB representation, and color-mapping attachment.
@@ -235,26 +265,115 @@ to be specified. This draft does not define a migration or compatibility layer.
 
 Once the shared semantics are agreed, evaluate representative views in at least
 three viewers. Compare dimension selections, contrast and color results, and,
-if included, camera presentation. Shared examples should cover continuous
+camera presentation. Shared examples should cover continuous
 intensities, discrete labels, RGB, and a kymograph.
 
 ## Tutorials and examples
 
-The following JSON illustrates the two-stage color mapping proposed in the
-notes. Field names and structure are provisional. The name is descriptive;
-the explicit stops carry the mapping.
+The following provisional example combines dimension mapping, two cameras,
+a discrete label map, and a continuous intensity map. It preserves the proposed
+structure from the working notes, expressed as valid JSON. Field names,
+attachment of color mappings to data, and rendering semantics remain open.
+The coordinate-space identifier is a placeholder.
+
+Dimensions can be omitted when not shown. In this sketch, `time` and `indexable`
+include current selections, and the first camera is primary. Both cameras use
+a sensor/window box and view vector. The first illustrates perspective
+projection and the second orthographic projection; the geometry conventions
+described above remain provisional.
 
 ```json
 {
-  "name": "black to white",
-  "value_to_cspace": [[13, 0.0], [255, 1.0]],
-  "cspace_to_color": [[0.0, "#000000FF"], [1.0, "#FFFFFFFF"]]
+  "views": [
+    {
+      "background_color": "#00000000",
+      "handedness": "right-handed",
+      "coordinate_space": "id-of-RFC-5-coordinate-space",
+      "dimensions": {
+        "x": "x",
+        "y": "y",
+        "z": "t",
+        "time": {
+          "u": 1
+        },
+        "overlapping": "airyscan_sample",
+        "indexable": [
+          {
+            "c": 0
+          },
+          {
+            "sample": 54
+          }
+        ]
+      },
+      "cameras": [
+        {
+          "sensor": {
+            "x": [500, 700],
+            "y": [10, 40],
+            "z": [10, 50]
+          },
+          "view_vector": {"x": 0, "y": 0, "z": -1},
+          "focal_length": 100
+        },
+        {
+          "sensor": {
+            "x": [310, 700],
+            "y": [10, 40],
+            "z": [10, 50]
+          },
+          "view_vector": {"x": 0, "y": 0, "z": -1},
+          "focal_length": null
+        }
+      ],
+      "colors": [
+        {
+          "over_boundary": "periodic",
+          "under_boundary": "#00000000",
+          "bad_mapping": "#FF0000FF",
+          "blending_mode": "additive",
+          "mapping": "unique",
+          "gamma": 1,
+          "value_to_cspace": "identity",
+          "cspace_to_color": [
+            [1, "#000000FF"],
+            [2, "#FFFFFFFF"],
+            [115, "#FFFFFFFF"]
+          ],
+          "name": "labelmap"
+        },
+        {
+          "over_boundary": "periodic",
+          "under_boundary": "#00000000",
+          "bad_mapping": "#FF0000FF",
+          "blending_mode": "additive",
+          "mapping": "linear",
+          "gamma": 1,
+          "value_to_cspace": [
+            [13, 0.0],
+            [255, 1.0]
+          ],
+          "cspace_to_color": [
+            [0.0, "#000000FF"],
+            [1.0, "#FFFFFFFF"]
+          ],
+          "name": "black to white"
+        }
+      ]
+    }
+  ]
 }
 ```
 
-For a label map, the first stage could be `"identity"`, with explicit label
-values such as `1`, `2`, and `115` mapped to colors in the second stage.
-Public example datasets remain to be selected.
+The color mappings include explicit values; their names are descriptive.
+`value_to_cspace` can be `"identity"` for direct mapping of label values or a
+list of pairs for the first stage of a continuous mapping. Both mapping stages
+use arrays of pairs.
+
+The notes also consider `mirror` and explicit colors for boundary behavior,
+`screen` and `multiply` for blending, and `nearest-neighbor` for interpolation.
+These alternatives and their exact semantics remain to be specified. Public
+example datasets remain to be selected.
 
 ## UI/UX
 
